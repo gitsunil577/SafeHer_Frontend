@@ -1,12 +1,12 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import Modal from '../common/Modal';
+import api from '../../services/api';
 
 const EmergencyContacts = () => {
-  const [contacts, setContacts] = useState([
-    { id: 1, name: 'Mom', phone: '+1234567890', relation: 'Mother', primary: true },
-    { id: 2, name: 'Dad', phone: '+1234567891', relation: 'Father', primary: false },
-    { id: 3, name: 'Best Friend', phone: '+1234567892', relation: 'Friend', primary: false }
-  ]);
+  const [contacts, setContacts] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [saving, setSaving] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingContact, setEditingContact] = useState(null);
   const [formData, setFormData] = useState({
@@ -14,6 +14,28 @@ const EmergencyContacts = () => {
     phone: '',
     relation: ''
   });
+
+  const fetchContacts = useCallback(async () => {
+    try {
+      setError(null);
+      const res = await api.getContacts();
+      setContacts(res.data.map(c => ({
+        id: c._id,
+        name: c.name,
+        phone: c.phone,
+        relation: c.relation,
+        primary: c.isPrimary
+      })));
+    } catch (err) {
+      setError(err.message || 'Failed to load contacts');
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchContacts();
+  }, [fetchContacts]);
 
   const handleChange = (e) => {
     setFormData({
@@ -38,36 +60,57 @@ const EmergencyContacts = () => {
     setIsModalOpen(true);
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
+    setSaving(true);
+    setError(null);
 
-    if (editingContact) {
-      setContacts(contacts.map(c =>
-        c.id === editingContact.id ? { ...c, ...formData } : c
-      ));
-    } else {
-      setContacts([...contacts, {
-        id: Date.now(),
-        ...formData,
-        primary: contacts.length === 0
-      }]);
+    try {
+      if (editingContact) {
+        await api.updateContact(editingContact.id, formData);
+      } else {
+        await api.createContact(formData);
+      }
+      setIsModalOpen(false);
+      await fetchContacts();
+    } catch (err) {
+      setError(err.message || 'Failed to save contact');
+    } finally {
+      setSaving(false);
     }
-
-    setIsModalOpen(false);
   };
 
-  const deleteContact = (id) => {
+  const deleteContact = async (id) => {
     if (window.confirm('Are you sure you want to delete this contact?')) {
-      setContacts(contacts.filter(c => c.id !== id));
+      try {
+        setError(null);
+        await api.deleteContact(id);
+        await fetchContacts();
+      } catch (err) {
+        setError(err.message || 'Failed to delete contact');
+      }
     }
   };
 
-  const setPrimary = (id) => {
-    setContacts(contacts.map(c => ({
-      ...c,
-      primary: c.id === id
-    })));
+  const setPrimary = async (id) => {
+    try {
+      setError(null);
+      await api.setPrimaryContact(id);
+      await fetchContacts();
+    } catch (err) {
+      setError(err.message || 'Failed to set primary contact');
+    }
   };
+
+  if (loading) {
+    return (
+      <div className="container" style={{ padding: '20px 0', textAlign: 'center' }}>
+        <div className="card">
+          <p>Loading contacts...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="container" style={{ padding: '20px 0' }}>
@@ -81,6 +124,18 @@ const EmergencyContacts = () => {
             + Add Contact
           </button>
         </div>
+
+        {error && (
+          <div style={{
+            padding: '10px 15px',
+            marginBottom: '15px',
+            background: '#ffebee',
+            color: '#c62828',
+            borderRadius: '8px'
+          }}>
+            {error}
+          </div>
+        )}
 
         {contacts.length === 0 ? (
           <div style={{ textAlign: 'center', padding: '40px', color: '#666' }}>
@@ -219,8 +274,13 @@ const EmergencyContacts = () => {
           </div>
 
           <div style={{ display: 'flex', gap: '10px', marginTop: '20px' }}>
-            <button type="submit" className="btn btn-primary" style={{ flex: 1 }}>
-              {editingContact ? 'Save Changes' : 'Add Contact'}
+            <button
+              type="submit"
+              className="btn btn-primary"
+              style={{ flex: 1 }}
+              disabled={saving}
+            >
+              {saving ? 'Saving...' : (editingContact ? 'Save Changes' : 'Add Contact')}
             </button>
             <button
               type="button"

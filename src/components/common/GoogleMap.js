@@ -33,8 +33,51 @@ const createIcon = (color, emoji) => {
   });
 };
 
+// Larger, pulsing user location icon
+const userIcon = L.divIcon({
+  className: 'custom-marker user-location-marker',
+  html: `<div style="
+    position: relative;
+    width: 44px;
+    height: 44px;
+  ">
+    <div style="
+      position: absolute;
+      top: 0; left: 0;
+      width: 44px;
+      height: 44px;
+      border-radius: 50%;
+      background: rgba(233, 30, 99, 0.2);
+      animation: userPulse 2s ease-out infinite;
+    "></div>
+    <div style="
+      position: absolute;
+      top: 6px; left: 6px;
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      background: #e91e63;
+      border: 3px solid white;
+      box-shadow: 0 2px 8px rgba(233, 30, 99, 0.5);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    ">
+      <div style="
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        background: white;
+      "></div>
+    </div>
+  </div>`,
+  iconSize: [44, 44],
+  iconAnchor: [22, 22],
+  popupAnchor: [0, -22]
+});
+
 const markerIcons = {
-  user: createIcon('#e91e63', '📍'),
+  user: userIcon,
   Police: createIcon('#1976d2', '👮'),
   Helpdesk: createIcon('#7c4dff', '🏢'),
   Volunteer: createIcon('#4caf50', '🤝'),
@@ -62,13 +105,24 @@ const LocationMap = ({
   markers = [],
   safeZones = [],
   showUserLocation = true,
+  userPosition = null,
   onMarkerClick,
   height = '400px'
 }) => {
-  const [userLocation, setUserLocation] = useState(null);
+  const [userLocation, setUserLocation] = useState(
+    userPosition ? [userPosition.lat, userPosition.lng] : null
+  );
 
-  // Get user's current location
+  // Sync with parent-provided userPosition
   useEffect(() => {
+    if (userPosition) {
+      setUserLocation([userPosition.lat, userPosition.lng]);
+    }
+  }, [userPosition]);
+
+  // Get user's current location (only if parent didn't provide one)
+  useEffect(() => {
+    if (userPosition) return; // Parent already provided location
     if (showUserLocation && navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
         (position) => {
@@ -78,12 +132,12 @@ const LocationMap = ({
           console.error('Error getting location:', error);
           setUserLocation(defaultCenter);
         },
-        { enableHighAccuracy: true }
+        { enableHighAccuracy: true, timeout: 10000 }
       );
     } else {
       setUserLocation(defaultCenter);
     }
-  }, [showUserLocation]);
+  }, [showUserLocation, userPosition]);
 
   const handleMarkerClick = (marker) => {
     if (onMarkerClick) {
@@ -108,12 +162,13 @@ const LocationMap = ({
 
         <RecenterMap center={center} />
 
-        {/* User Location Marker */}
+        {/* User Location Marker - rendered with high zIndexOffset to stay on top */}
         {userLocation && (
           <>
             <Marker
               position={userLocation}
               icon={markerIcons.user}
+              zIndexOffset={1000}
               eventHandlers={{
                 click: () => handleMarkerClick({
                   id: 'user',
@@ -148,7 +203,7 @@ const LocationMap = ({
         )}
 
         {/* Support Team Markers */}
-        {markers.map((marker) => (
+        {markers.filter(marker => marker.position && marker.position.lat && marker.position.lng).map((marker) => (
           <Marker
             key={marker.id}
             position={[marker.position.lat, marker.position.lng]}
@@ -191,7 +246,7 @@ const LocationMap = ({
         ))}
 
         {/* Safe Zone Markers */}
-        {safeZones.map((zone) => (
+        {safeZones.filter(zone => zone.position && zone.position.lat && zone.position.lng).map((zone) => (
           <Marker
             key={`zone-${zone.id}`}
             position={[zone.position.lat, zone.position.lng]}

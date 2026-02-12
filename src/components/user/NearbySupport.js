@@ -1,8 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import LocationMap from '../common/GoogleMap';
+import { useSocket } from '../../context/SocketContext';
 import api from '../../services/api';
 
 const NearbySupport = () => {
+  const { on, off, isConnected } = useSocket();
   const [userLocation, setUserLocation] = useState(null);
   const [selectedItem, setSelectedItem] = useState(null);
   const [activeTab, setActiveTab] = useState('all');
@@ -63,10 +65,61 @@ const NearbySupport = () => {
 
     fetchVolunteers();
 
-    // Refresh every 30 seconds
-    const interval = setInterval(fetchVolunteers, 30000);
+    // Fallback polling every 60 seconds (socket handles instant updates)
+    const interval = setInterval(fetchVolunteers, 60000);
     return () => clearInterval(interval);
   }, [userLocation]);
+
+  // Real-time volunteer status updates via Socket.IO
+  useEffect(() => {
+    const handleVolunteerStatusUpdate = (data) => {
+      console.log('Volunteer status update received:', data);
+      setVolunteers(prev => {
+        if (data.isOnDuty) {
+          // Volunteer went on-duty: update existing or add new
+          const exists = prev.find(v => v.id === data.volunteerId);
+          if (exists) {
+            return prev.map(vol =>
+              vol.id === data.volunteerId ? { ...vol, isOnDuty: true } : vol
+            );
+          }
+          return [...prev, {
+            id: data.volunteerId,
+            name: data.volunteerName || 'SafeHer Volunteer',
+            type: 'Volunteer',
+            isOnDuty: true,
+            position: data.location || null,
+            rating: 0,
+            successfulAssists: 0,
+            phone: 'N/A'
+          }];
+        } else {
+          // Volunteer went off-duty: remove from list
+          return prev.filter(vol => vol.id !== data.volunteerId);
+        }
+      });
+    };
+
+    const handleVolunteerMoved = (data) => {
+      setVolunteers(prev => prev.map(vol => {
+        if (vol.id === data.volunteerId) {
+          return {
+            ...vol,
+            position: { lat: data.latitude, lng: data.longitude }
+          };
+        }
+        return vol;
+      }));
+    };
+
+    on('volunteer_status_update', handleVolunteerStatusUpdate);
+    on('volunteer_moved', handleVolunteerMoved);
+
+    return () => {
+      off('volunteer_status_update', handleVolunteerStatusUpdate);
+      off('volunteer_moved', handleVolunteerMoved);
+    };
+  }, [on, off]);
 
   // Generate nearby locations based on user's position
   const generateNearbyLocation = (baseLat, baseLng, offsetLat, offsetLng) => ({
@@ -119,10 +172,12 @@ const NearbySupport = () => {
   // Combine static support teams with real volunteers
   const allSupportTeams = [
     ...supportTeams,
-    ...volunteers.map(vol => ({
-      ...vol,
-      status: vol.isOnDuty ? 'on-duty' : 'available'
-    }))
+    ...volunteers
+      .filter(vol => vol.isOnDuty)
+      .map(vol => ({
+        ...vol,
+        status: 'on-duty'
+      }))
   ];
 
   const safeZones = [
@@ -197,6 +252,7 @@ const NearbySupport = () => {
           markers={allSupportTeams}
           safeZones={safeZones}
           showUserLocation={true}
+          userPosition={userLocation}
           onMarkerClick={handleMarkerClick}
           height="350px"
         />
@@ -227,6 +283,19 @@ const NearbySupport = () => {
         <div style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '0.875rem' }}>
           <span style={{ width: '12px', height: '12px', borderRadius: '50%', background: '#4caf50' }}></span>
           <span>Volunteer ({volunteers.length} registered, {onDutyCount} on duty)</span>
+          {isConnected && (
+            <span style={{
+              background: '#e8f5e9',
+              color: '#2e7d32',
+              padding: '1px 6px',
+              borderRadius: '8px',
+              fontSize: '0.65rem',
+              fontWeight: '700',
+              marginLeft: '4px'
+            }}>
+              LIVE
+            </span>
+          )}
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '0.875rem' }}>
           <span style={{ width: '12px', height: '12px', borderRadius: '50%', background: '#f44336' }}></span>
@@ -260,7 +329,7 @@ const NearbySupport = () => {
             }}
           >
             {tab === 'all' ? 'All Support' : tab}
-            {tab === 'volunteer' && ` (${volunteers.length})`}
+            {tab === 'volunteer' && ` (${onDutyCount})`}
           </button>
         ))}
       </div>
@@ -359,10 +428,10 @@ const NearbySupport = () => {
                         </span>
                       )}
                       <span style={{
-                        color: team.isOnDuty ? '#4caf50' : (team.status === 'available' ? '#4caf50' : '#ff9800'),
+                        color: (team.isOnDuty || team.status === 'on-duty') ? '#4caf50' : (team.status === 'available' ? '#4caf50' : '#ff9800'),
                         fontSize: '0.875rem'
                       }}>
-                        ● {team.isOnDuty ? 'On Duty' : (team.status === 'available' ? 'Available' : 'Off Duty')}
+                        ● {(team.isOnDuty || team.status === 'on-duty') ? 'On Duty' : (team.status === 'available' ? 'Available' : 'Off Duty')}
                       </span>
                     </div>
                     {team.skills && team.skills.length > 0 && (

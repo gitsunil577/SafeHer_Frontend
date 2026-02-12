@@ -170,6 +170,37 @@ class ApiService {
   async getActiveAlert() {
     return this.request('/alerts/active');
   }
+
+  // Emergency Contact endpoints
+  async getContacts() {
+    return this.request('/contacts');
+  }
+
+  async createContact(data) {
+    return this.request('/contacts', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async updateContact(id, data) {
+    return this.request(`/contacts/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async deleteContact(id) {
+    return this.request(`/contacts/${id}`, {
+      method: 'DELETE',
+    });
+  }
+
+  async setPrimaryContact(id) {
+    return this.request(`/contacts/${id}/primary`, {
+      method: 'PUT',
+    });
+  }
 }
 
 const api = new ApiService();

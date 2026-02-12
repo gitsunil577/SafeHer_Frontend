@@ -1,14 +1,32 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
+import { useSocket } from '../../context/SocketContext';
 import SOSButton from './SOSButton';
 import NearbySupport from './NearbySupport';
 import AlertHistory from './AlertHistory';
 
 const Dashboard = () => {
   const { user } = useAuth();
+  const { on, off, isConnected } = useSocket();
   const [activeAlert, setActiveAlert] = useState(null);
   const [alertStats, setAlertStats] = useState(null);
+  const [respondingVolunteer, setRespondingVolunteer] = useState(null);
+
+  // Listen for real-time volunteer response notifications
+  useEffect(() => {
+    const handleVolunteerResponding = (data) => {
+      console.log('Volunteer responding:', data);
+      setRespondingVolunteer({
+        name: data.volunteerName,
+        estimatedTime: data.estimatedTime,
+        alertId: data.alertId
+      });
+    };
+
+    on('volunteer_responding', handleVolunteerResponding);
+    return () => off('volunteer_responding', handleVolunteerResponding);
+  }, [on, off]);
 
   const handleSOSTrigger = (alertData) => {
     setActiveAlert(alertData);
@@ -42,11 +60,70 @@ const Dashboard = () => {
             <h2>Welcome, {user?.name || 'User'}!</h2>
             <p style={{ color: '#666' }}>Stay safe. Help is just one tap away.</p>
           </div>
-          <div className={`status-badge ${activeAlert ? 'status-alert' : 'status-safe'}`}>
-            {activeAlert ? '🚨 Alert Active' : '✓ All Safe'}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            {isConnected && (
+              <div style={{
+                display: 'flex', alignItems: 'center', gap: '4px',
+                padding: '4px 8px', borderRadius: '10px',
+                background: '#e8f5e9', fontSize: '0.7rem', fontWeight: '700', color: '#2e7d32'
+              }}>
+                <span style={{
+                  width: '6px', height: '6px', borderRadius: '50%',
+                  background: '#4caf50', display: 'inline-block',
+                  animation: 'pulse 2s infinite'
+                }}></span>
+                LIVE
+              </div>
+            )}
+            <div className={`status-badge ${activeAlert ? 'status-alert' : 'status-safe'}`}>
+              {activeAlert ? 'Alert Active' : 'All Safe'}
+            </div>
           </div>
         </div>
       </div>
+
+      {/* Volunteer Responding Banner - Real-time */}
+      {respondingVolunteer && (
+        <div className="card" style={{
+          marginBottom: '20px',
+          background: 'linear-gradient(135deg, #e8f5e9, #c8e6c9)',
+          border: '2px solid #4caf50'
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
+            <div style={{
+              width: '50px',
+              height: '50px',
+              borderRadius: '50%',
+              background: '#4caf50',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: '1.5rem',
+              color: '#fff'
+            }}>
+              &#x1F64B;
+            </div>
+            <div style={{ flex: 1 }}>
+              <h3 style={{ color: '#2e7d32', marginBottom: '5px' }}>Help is on the way!</h3>
+              <p style={{ color: '#333', fontSize: '0.875rem', margin: 0 }}>
+                <strong>{respondingVolunteer.name}</strong> is responding to your alert
+                {respondingVolunteer.estimatedTime && ` (ETA: ${respondingVolunteer.estimatedTime})`}
+              </p>
+            </div>
+            <div style={{
+              display: 'flex', alignItems: 'center', gap: '4px',
+              background: '#fff', padding: '4px 10px', borderRadius: '12px'
+            }}>
+              <span style={{
+                width: '8px', height: '8px', borderRadius: '50%',
+                background: '#4caf50', display: 'inline-block',
+                animation: 'pulse 1.5s infinite'
+              }}></span>
+              <span style={{ color: '#2e7d32', fontSize: '0.75rem', fontWeight: '700' }}>LIVE</span>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Active Alert Banner */}
       {activeAlert && alertStats && (

@@ -1,7 +1,9 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { useSocket } from '../../context/SocketContext';
 import api from '../../services/api';
 
 const SOSButton = ({ onTrigger, onAlertUpdate }) => {
+  const { emit } = useSocket();
   const [isActive, setIsActive] = useState(false);
   const [countdown, setCountdown] = useState(null);
   const [location, setLocation] = useState(null);
@@ -16,6 +18,7 @@ const SOSButton = ({ onTrigger, onAlertUpdate }) => {
 
   const locationWatchRef = useRef(null);
   const locationIntervalRef = useRef(null);
+  const sosTriggeredRef = useRef(false);
 
   // Get user's location on component mount
   useEffect(() => {
@@ -99,6 +102,13 @@ const SOSButton = ({ onTrigger, onAlertUpdate }) => {
               latitude: location.lat,
               longitude: location.lng
             });
+            // Also emit via socket for instant delivery to volunteer
+            emit('location_update', {
+              alertId: alertIdToUse,
+              latitude: location.lat,
+              longitude: location.lng,
+              userType: 'user'
+            });
             setLocationUpdateCount(prev => prev + 1);
           } catch (err) {
             console.error('Failed to update location:', err);
@@ -123,8 +133,12 @@ const SOSButton = ({ onTrigger, onAlertUpdate }) => {
 
   // Trigger SOS - Create alert in backend
   const triggerSOS = useCallback(async () => {
+    if (sosTriggeredRef.current) return;
+    sosTriggeredRef.current = true;
+
     setLoading(true);
     setError(null);
+    setCountdown(null);
 
     try {
       // Get fresh location
@@ -185,6 +199,7 @@ const SOSButton = ({ onTrigger, onAlertUpdate }) => {
       setError(err.message || 'Failed to send SOS. Please try again.');
       setIsActive(false);
       setCountdown(null);
+      sosTriggeredRef.current = false;
     } finally {
       setLoading(false);
     }
@@ -223,6 +238,7 @@ const SOSButton = ({ onTrigger, onAlertUpdate }) => {
             if (response.data.status === 'resolved' || response.data.status === 'cancelled') {
               setIsActive(false);
               stopLiveLocationSharing();
+              sosTriggeredRef.current = false;
             }
           }
         } catch (err) {
@@ -266,6 +282,7 @@ const SOSButton = ({ onTrigger, onAlertUpdate }) => {
         setAlertStatus(null);
         setRespondingVolunteer(null);
         stopLiveLocationSharing();
+        sosTriggeredRef.current = false;
       }
     } catch (err) {
       setError(err.message || 'Failed to cancel alert');

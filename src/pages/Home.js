@@ -1,5 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
+import Chatbot from '../components/common/Chatbot';
 
 const Home = () => {
   const features = [
@@ -216,6 +217,9 @@ const Home = () => {
           </div>
         </div>
       </section>
+
+      {/* Safety Tips Chatbot */}
+      <Chatbot />
     </div>
   );
 };

@@ -39,7 +39,7 @@ const Footer = () => {
           </div>
         </div>
         <div className="footer-bottom">
-          <p>&copy; 2024 SafeHer. All rights reserved. | Women Safety & Emergency Assistance Platform</p>
+          <p>&copy; 2026 SafeHer. All rights reserved. | Women Safety & Emergency Assistance Platform</p>
         </div>
       </div>
     </footer>
