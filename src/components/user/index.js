@@ -4,3 +4,4 @@ export { default as SafetyProfile } from './SafetyProfile';
 export { default as EmergencyContacts } from './EmergencyContacts';
 export { default as AlertHistory, AlertHistoryPage } from './AlertHistory';
 export { default as NearbySupport } from './NearbySupport';
+export { default as FeedbackBanner } from './FeedbackBanner';

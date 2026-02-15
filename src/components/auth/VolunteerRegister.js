@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
+import AuthLayout from './AuthLayout';
 
 const VolunteerRegister = () => {
   const [formData, setFormData] = useState({
@@ -105,13 +106,12 @@ const VolunteerRegister = () => {
   };
 
   return (
-    <div className="auth-container">
-      <div className="auth-card" style={{ maxWidth: '550px' }}>
-        <div className="auth-header">
-          <div className="auth-logo">SafeHer</div>
-          <h1 className="auth-title">Volunteer Registration</h1>
-          <p className="auth-subtitle">Join our network of verified responders</p>
-        </div>
+    <AuthLayout>
+      <div className="auth-header">
+        <div className="auth-logo">SafeHer</div>
+        <h1 className="auth-title">Volunteer Registration</h1>
+        <p className="auth-subtitle">Join our network of verified responders</p>
+      </div>
 
         {error && (
           <div style={{
@@ -355,12 +355,11 @@ const VolunteerRegister = () => {
           </button>
         </form>
 
-        <div className="auth-footer">
-          <p>Already registered? <Link to="/login">Sign in here</Link></p>
-          <p>Need help as a user? <Link to="/register">Register as User</Link></p>
-        </div>
+      <div className="auth-footer">
+        <p>Already registered? <Link to="/login">Sign in here</Link></p>
+        <p>Need help as a user? <Link to="/register">Register as User</Link></p>
       </div>
-    </div>
+    </AuthLayout>
   );
 };
 

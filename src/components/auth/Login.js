@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
+import AuthLayout from './AuthLayout';
 
 const Login = () => {
   const [formData, setFormData] = useState({
@@ -47,86 +48,84 @@ const Login = () => {
   };
 
   return (
-    <div className="auth-container">
-      <div className="auth-card">
-        <div className="auth-header">
-          <div className="auth-logo">SafeHer</div>
-          <h1 className="auth-title">Welcome Back</h1>
-          <p className="auth-subtitle">Sign in to access your account</p>
+    <AuthLayout>
+      <div className="auth-header">
+        <div className="auth-logo">SafeHer</div>
+        <h1 className="auth-title">Welcome Back</h1>
+        <p className="auth-subtitle">Sign in to access your account</p>
+      </div>
+
+      {error && (
+        <div className="alert alert-danger" style={{
+          color: '#c62828',
+          background: '#ffebee',
+          padding: '10px',
+          borderRadius: '8px',
+          marginBottom: '20px'
+        }}>
+          {error}
+        </div>
+      )}
+
+      <form onSubmit={handleSubmit}>
+        <div className="form-group">
+          <label className="form-label">Email Address</label>
+          <input
+            type="email"
+            name="email"
+            className="form-control"
+            value={formData.email}
+            onChange={handleChange}
+            placeholder="Enter your email"
+            required
+          />
         </div>
 
-        {error && (
-          <div className="alert alert-danger" style={{
-            color: '#c62828',
-            background: '#ffebee',
-            padding: '10px',
-            borderRadius: '8px',
-            marginBottom: '20px'
-          }}>
-            {error}
-          </div>
-        )}
-
-        <form onSubmit={handleSubmit}>
-          <div className="form-group">
-            <label className="form-label">Email Address</label>
+        <div className="form-group">
+          <label className="form-label">Password</label>
+          <div style={{ position: 'relative' }}>
             <input
-              type="email"
-              name="email"
+              type={showPassword ? 'text' : 'password'}
+              name="password"
               className="form-control"
-              value={formData.email}
+              style={{ paddingRight: '40px' }}
+              value={formData.password}
               onChange={handleChange}
-              placeholder="Enter your email"
+              placeholder="Enter your password"
               required
             />
+            <span
+              onClick={() => setShowPassword(!showPassword)}
+              style={{
+                position: 'absolute',
+                right: '10px',
+                top: '50%',
+                transform: 'translateY(-50%)',
+                cursor: 'pointer',
+                fontSize: '18px',
+                color: '#666'
+              }}
+            >
+              {showPassword ? '👁️' : '👁️‍🗨️'}
+            </span>
           </div>
-
-          <div className="form-group">
-            <label className="form-label">Password</label>
-            <div style={{ position: 'relative' }}>
-              <input
-                type={showPassword ? 'text' : 'password'}
-                name="password"
-                className="form-control"
-                style={{ paddingRight: '40px' }}
-                value={formData.password}
-                onChange={handleChange}
-                placeholder="Enter your password"
-                required
-              />
-              <span
-                onClick={() => setShowPassword(!showPassword)}
-                style={{
-                  position: 'absolute',
-                  right: '10px',
-                  top: '50%',
-                  transform: 'translateY(-50%)',
-                  cursor: 'pointer',
-                  fontSize: '18px',
-                  color: '#666'
-                }}
-              >
-                {showPassword ? '👁️' : '👁️‍🗨️'}
-              </span>
-            </div>
-          </div>
-
-          <button
-            type="submit"
-            className="btn btn-primary btn-lg"
-            style={{ width: '100%' }}
-            disabled={loading}
-          >
-            {loading ? 'Signing in...' : 'Sign In'}
-          </button>
-        </form>
-
-        <div className="auth-footer">
-          <p>Don't have an account? <Link to="/register">Register here</Link></p>
-          <p><Link to="/forgot-password">Forgot Password?</Link></p>
         </div>
+
+        <button
+          type="submit"
+          className="btn btn-primary btn-lg"
+          style={{ width: '100%' }}
+          disabled={loading}
+        >
+          {loading ? 'Signing in...' : 'Sign In'}
+        </button>
+      </form>
+
+      <div className="auth-footer">
+        <p>Don't have an account? <Link to="/register">Register here</Link></p>
+        <p><Link to="/forgot-password">Forgot Password?</Link></p>
       </div>
-    </div>
+    </AuthLayout>
   );
 };
 

@@ -33,6 +33,13 @@ export const SocketProvider = ({ children }) => {
 
     socketRef.current = socket;
 
+    // Re-attach all tracked listeners to the new socket
+    listenersRef.current.forEach((callbacks, event) => {
+      callbacks.forEach(cb => {
+        socket.on(event, cb);
+      });
+    });
+
     socket.on('connect', () => {
       setIsConnected(true);
       console.log('Socket connected:', socket.id);
@@ -62,17 +69,32 @@ export const SocketProvider = ({ children }) => {
   }, [user]);
 
   const on = useCallback((event, callback) => {
-    if (socketRef.current) {
-      socketRef.current.on(event, callback);
-    }
-    // Track listeners for cleanup
+    // Always track the listener so it can be re-attached on reconnection
     if (!listenersRef.current.has(event)) {
       listenersRef.current.set(event, []);
     }
     listenersRef.current.get(event).push(callback);
+
+    // Attach to current socket if it exists
+    if (socketRef.current) {
+      socketRef.current.on(event, callback);
+    }
   }, []);
 
   const off = useCallback((event, callback) => {
+    // Remove from tracking
+    if (listenersRef.current.has(event)) {
+      const callbacks = listenersRef.current.get(event);
+      const idx = callbacks.indexOf(callback);
+      if (idx !== -1) {
+        callbacks.splice(idx, 1);
+      }
+      if (callbacks.length === 0) {
+        listenersRef.current.delete(event);
+      }
+    }
+
+    // Remove from current socket
     if (socketRef.current) {
       socketRef.current.off(event, callback);
     }

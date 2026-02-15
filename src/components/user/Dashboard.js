@@ -5,6 +5,7 @@ import { useSocket } from '../../context/SocketContext';
 import SOSButton from './SOSButton';
 import NearbySupport from './NearbySupport';
 import AlertHistory from './AlertHistory';
+import FeedbackBanner from './FeedbackBanner';
 
 const Dashboard = () => {
   const { user } = useAuth();
@@ -155,6 +156,9 @@ const Dashboard = () => {
           </div>
         </div>
       )}
+
+      {/* Feedback Banner - shows when resolved alerts need rating */}
+      <FeedbackBanner />
 
       <div className="dashboard-grid">
         {/* SOS Section */}

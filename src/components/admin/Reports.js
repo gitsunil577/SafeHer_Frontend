@@ -1,44 +1,73 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
+import api from '../../services/api';
 
 const Reports = () => {
   const [dateRange, setDateRange] = useState('month');
+  const [reportData, setReportData] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
-  const stats = {
-    totalAlerts: 156,
-    resolvedAlerts: 147,
-    avgResponseTime: '3.5 min',
-    successRate: '94.2%',
-    newUsers: 89,
-    newVolunteers: 12,
-    activeVolunteers: 45
+  const getDaysFromRange = (range) => {
+    switch (range) {
+      case 'week': return 7;
+      case 'month': return 30;
+      case 'quarter': return 90;
+      case 'year': return 365;
+      default: return 30;
+    }
   };
 
-  const monthlyData = [
-    { month: 'Aug', alerts: 98, resolved: 92 },
-    { month: 'Sep', alerts: 112, resolved: 105 },
-    { month: 'Oct', alerts: 125, resolved: 118 },
-    { month: 'Nov', alerts: 145, resolved: 138 },
-    { month: 'Dec', alerts: 132, resolved: 127 },
-    { month: 'Jan', alerts: 156, resolved: 147 }
-  ];
+  const fetchReports = useCallback(async (range) => {
+    try {
+      setError(null);
+      setLoading(true);
+      const days = getDaysFromRange(range);
+      const response = await api.getAdminReports(days);
+      setReportData(response.data);
+    } catch (err) {
+      setError(err.message || 'Failed to load reports');
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
-  const topVolunteers = [
-    { name: 'John Doe', responses: 45, rating: 4.9, avgTime: '2.8 min' },
-    { name: 'Sarah Smith', responses: 38, rating: 4.8, avgTime: '3.1 min' },
-    { name: 'Mike Johnson', responses: 32, rating: 4.7, avgTime: '3.5 min' },
-    { name: 'Emily Brown', responses: 28, rating: 4.9, avgTime: '2.5 min' },
-    { name: 'David Wilson', responses: 25, rating: 4.6, avgTime: '3.8 min' }
-  ];
+  useEffect(() => {
+    fetchReports(dateRange);
+  }, [dateRange, fetchReports]);
 
-  const alertsByLocation = [
-    { location: 'MG Road', count: 28, percentage: '18%' },
-    { location: 'Koramangala', count: 24, percentage: '15%' },
-    { location: 'BTM Layout', count: 22, percentage: '14%' },
-    { location: 'Indiranagar', count: 19, percentage: '12%' },
-    { location: 'Whitefield', count: 15, percentage: '10%' }
-  ];
+  const handleDateRangeChange = (value) => {
+    setDateRange(value);
+  };
 
-  const maxAlerts = Math.max(...monthlyData.map(d => d.alerts));
+  // Compute derived metrics
+  const alertsByDay = reportData?.alertsByDay || [];
+  const alertsByLocation = reportData?.alertsByLocation || [];
+  const topVolunteers = reportData?.topVolunteers || [];
+  const responseTimeStats = reportData?.responseTimeStats || {};
+
+  const totalAlerts = alertsByDay.reduce((sum, d) => sum + d.total, 0);
+  const totalResolved = alertsByDay.reduce((sum, d) => sum + d.resolved, 0);
+  const successRate = totalAlerts > 0 ? ((totalResolved / totalAlerts) * 100).toFixed(1) : 0;
+  const avgResponseMin = responseTimeStats.avgTime ? (responseTimeStats.avgTime / 60).toFixed(1) : 'N/A';
+
+  const maxAlertCount = alertsByDay.length > 0
+    ? Math.max(...alertsByDay.map(d => d.total))
+    : 1;
+
+  const maxLocationCount = alertsByLocation.length > 0
+    ? Math.max(...alertsByLocation.map(d => d.count))
+    : 1;
+
+  if (error && !reportData) {
+    return (
+      <div className="container" style={{ padding: '20px 0' }}>
+        <div className="card" style={{ background: '#ffebee', textAlign: 'center' }}>
+          <p style={{ color: '#c62828' }}>{error}</p>
+          <button className="btn btn-primary" onClick={() => fetchReports(dateRange)}>Retry</button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="container" style={{ padding: '20px 0' }}>
@@ -53,7 +82,7 @@ const Reports = () => {
             <select
               className="form-control"
               value={dateRange}
-              onChange={(e) => setDateRange(e.target.value)}
+              onChange={(e) => handleDateRangeChange(e.target.value)}
               style={{ width: 'auto' }}
             >
               <option value="week">Last 7 Days</option>
@@ -61,174 +90,177 @@ const Reports = () => {
               <option value="quarter">Last 3 Months</option>
               <option value="year">Last Year</option>
             </select>
-            <button className="btn btn-primary">Export Report</button>
           </div>
         </div>
       </div>
 
-      {/* Key Metrics */}
-      <div className="dashboard-stats" style={{ marginTop: '20px' }}>
-        <div className="stat-card">
-          <div className="stat-number">{stats.totalAlerts}</div>
-          <div className="stat-label">Total Alerts</div>
+      {loading ? (
+        <div className="card" style={{ marginTop: '20px', textAlign: 'center' }}>
+          <p>Loading reports...</p>
         </div>
-        <div className="stat-card">
-          <div className="stat-number" style={{ color: '#4caf50' }}>{stats.resolvedAlerts}</div>
-          <div className="stat-label">Resolved</div>
-        </div>
-        <div className="stat-card">
-          <div className="stat-number">{stats.avgResponseTime}</div>
-          <div className="stat-label">Avg Response</div>
-        </div>
-        <div className="stat-card">
-          <div className="stat-number" style={{ color: '#4caf50' }}>{stats.successRate}</div>
-          <div className="stat-label">Success Rate</div>
-        </div>
-        <div className="stat-card">
-          <div className="stat-number" style={{ color: '#e91e63' }}>{stats.newUsers}</div>
-          <div className="stat-label">New Users</div>
-        </div>
-        <div className="stat-card">
-          <div className="stat-number" style={{ color: '#7c4dff' }}>{stats.newVolunteers}</div>
-          <div className="stat-label">New Volunteers</div>
-        </div>
-      </div>
-
-      <div className="dashboard-grid" style={{ marginTop: '20px' }}>
-        {/* Alerts Trend Chart */}
-        <div className="card">
-          <h3 style={{ marginBottom: '20px' }}>Alerts Trend</h3>
-          <div style={{ display: 'flex', alignItems: 'flex-end', gap: '15px', height: '200px', padding: '20px 0' }}>
-            {monthlyData.map((data, index) => (
-              <div key={index} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                <div style={{ display: 'flex', gap: '2px', alignItems: 'flex-end', height: '150px' }}>
-                  <div
-                    style={{
-                      width: '20px',
-                      height: `${(data.alerts / maxAlerts) * 150}px`,
-                      background: '#e91e63',
-                      borderRadius: '4px 4px 0 0'
-                    }}
-                    title={`Alerts: ${data.alerts}`}
-                  />
-                  <div
-                    style={{
-                      width: '20px',
-                      height: `${(data.resolved / maxAlerts) * 150}px`,
-                      background: '#4caf50',
-                      borderRadius: '4px 4px 0 0'
-                    }}
-                    title={`Resolved: ${data.resolved}`}
-                  />
-                </div>
-                <span style={{ marginTop: '10px', fontSize: '0.875rem', color: '#666' }}>{data.month}</span>
+      ) : (
+        <>
+          {/* Key Metrics */}
+          <div className="dashboard-stats" style={{ marginTop: '20px' }}>
+            <div className="stat-card">
+              <div className="stat-number">{totalAlerts}</div>
+              <div className="stat-label">Total Alerts</div>
+            </div>
+            <div className="stat-card">
+              <div className="stat-number" style={{ color: '#4caf50' }}>{totalResolved}</div>
+              <div className="stat-label">Resolved</div>
+            </div>
+            <div className="stat-card">
+              <div className="stat-number">{avgResponseMin}{avgResponseMin !== 'N/A' ? ' min' : ''}</div>
+              <div className="stat-label">Avg Response</div>
+            </div>
+            <div className="stat-card">
+              <div className="stat-number" style={{ color: '#4caf50' }}>{successRate}%</div>
+              <div className="stat-label">Success Rate</div>
+            </div>
+            <div className="stat-card">
+              <div className="stat-number">
+                {responseTimeStats.minTime ? `${(responseTimeStats.minTime / 60).toFixed(1)} min` : 'N/A'}
               </div>
-            ))}
-          </div>
-          <div style={{ display: 'flex', justifyContent: 'center', gap: '20px', marginTop: '10px' }}>
-            <span style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
-              <div style={{ width: '12px', height: '12px', background: '#e91e63', borderRadius: '2px' }} />
-              Total Alerts
-            </span>
-            <span style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
-              <div style={{ width: '12px', height: '12px', background: '#4caf50', borderRadius: '2px' }} />
-              Resolved
-            </span>
-          </div>
-        </div>
-
-        {/* Alerts by Location */}
-        <div className="card">
-          <h3 style={{ marginBottom: '20px' }}>Alerts by Location</h3>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
-            {alertsByLocation.map((item, index) => (
-              <div key={index}>
-                <div className="flex-between" style={{ marginBottom: '5px' }}>
-                  <span>{item.location}</span>
-                  <span style={{ fontWeight: '500' }}>{item.count} ({item.percentage})</span>
-                </div>
-                <div style={{ background: '#eee', borderRadius: '4px', height: '8px', overflow: 'hidden' }}>
-                  <div
-                    style={{
-                      width: item.percentage,
-                      height: '100%',
-                      background: `hsl(${340 - index * 20}, 70%, 50%)`,
-                      borderRadius: '4px'
-                    }}
-                  />
-                </div>
+              <div className="stat-label">Fastest Response</div>
+            </div>
+            <div className="stat-card">
+              <div className="stat-number" style={{ color: '#ff9800' }}>
+                {responseTimeStats.maxTime ? `${(responseTimeStats.maxTime / 60).toFixed(1)} min` : 'N/A'}
               </div>
-            ))}
+              <div className="stat-label">Slowest Response</div>
+            </div>
           </div>
-        </div>
-      </div>
 
-      {/* Top Volunteers */}
-      <div className="card" style={{ marginTop: '20px' }}>
-        <h3 style={{ marginBottom: '20px' }}>Top Performing Volunteers</h3>
-        <table className="data-table">
-          <thead>
-            <tr>
-              <th>Rank</th>
-              <th>Volunteer</th>
-              <th>Responses</th>
-              <th>Rating</th>
-              <th>Avg Response Time</th>
-            </tr>
-          </thead>
-          <tbody>
-            {topVolunteers.map((volunteer, index) => (
-              <tr key={index}>
-                <td>
-                  <span style={{
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    width: '30px',
-                    height: '30px',
-                    borderRadius: '50%',
-                    background: index === 0 ? '#ffd700' : index === 1 ? '#c0c0c0' : index === 2 ? '#cd7f32' : '#eee',
-                    fontWeight: 'bold'
-                  }}>
-                    {index + 1}
-                  </span>
-                </td>
-                <td style={{ fontWeight: '500' }}>{volunteer.name}</td>
-                <td>{volunteer.responses}</td>
-                <td>⭐ {volunteer.rating}</td>
-                <td>{volunteer.avgTime}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+          <div className="dashboard-grid" style={{ marginTop: '20px' }}>
+            {/* Alerts Trend Chart */}
+            <div className="card">
+              <h3 style={{ marginBottom: '20px' }}>Alerts Trend</h3>
+              {alertsByDay.length > 0 ? (
+                <>
+                  <div style={{ display: 'flex', alignItems: 'flex-end', gap: '4px', height: '200px', padding: '20px 0', overflowX: 'auto' }}>
+                    {alertsByDay.map((data, index) => (
+                      <div key={index} style={{ flex: '0 0 auto', minWidth: '30px', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                        <div style={{ display: 'flex', gap: '2px', alignItems: 'flex-end', height: '150px' }}>
+                          <div
+                            style={{
+                              width: '12px',
+                              height: `${Math.max((data.total / maxAlertCount) * 150, 4)}px`,
+                              background: '#e91e63',
+                              borderRadius: '2px 2px 0 0'
+                            }}
+                            title={`Total: ${data.total}`}
+                          />
+                          <div
+                            style={{
+                              width: '12px',
+                              height: `${Math.max((data.resolved / maxAlertCount) * 150, 4)}px`,
+                              background: '#4caf50',
+                              borderRadius: '2px 2px 0 0'
+                            }}
+                            title={`Resolved: ${data.resolved}`}
+                          />
+                        </div>
+                        <span style={{ marginTop: '5px', fontSize: '0.7rem', color: '#666', transform: 'rotate(-45deg)', whiteSpace: 'nowrap' }}>
+                          {data._id?.slice(5) || ''}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'center', gap: '20px', marginTop: '10px' }}>
+                    <span style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+                      <div style={{ width: '12px', height: '12px', background: '#e91e63', borderRadius: '2px' }} />
+                      Total Alerts
+                    </span>
+                    <span style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+                      <div style={{ width: '12px', height: '12px', background: '#4caf50', borderRadius: '2px' }} />
+                      Resolved
+                    </span>
+                  </div>
+                </>
+              ) : (
+                <p style={{ textAlign: 'center', color: '#666', padding: '40px' }}>No alert data for this period</p>
+              )}
+            </div>
 
-      {/* KPIs Summary */}
-      <div className="card" style={{ marginTop: '20px', background: 'linear-gradient(135deg, #e8f5e9, #e3f2fd)' }}>
-        <h3 style={{ marginBottom: '20px' }}>Key Performance Indicators</h3>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '20px' }}>
-          <div style={{ padding: '20px', background: 'white', borderRadius: '8px' }}>
-            <h4 style={{ color: '#e91e63', marginBottom: '10px' }}>User Growth</h4>
-            <p style={{ fontSize: '2rem', fontWeight: 'bold' }}>+7.2%</p>
-            <p style={{ color: '#666', fontSize: '0.875rem' }}>vs last month</p>
+            {/* Alerts by Location */}
+            <div className="card">
+              <h3 style={{ marginBottom: '20px' }}>Alerts by Location</h3>
+              {alertsByLocation.length > 0 ? (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
+                  {alertsByLocation.map((item, index) => {
+                    const percentage = ((item.count / maxLocationCount) * 100).toFixed(0);
+                    return (
+                      <div key={index}>
+                        <div className="flex-between" style={{ marginBottom: '5px' }}>
+                          <span>{item._id || 'Unknown'}</span>
+                          <span style={{ fontWeight: '500' }}>{item.count}</span>
+                        </div>
+                        <div style={{ background: '#eee', borderRadius: '4px', height: '8px', overflow: 'hidden' }}>
+                          <div
+                            style={{
+                              width: `${percentage}%`,
+                              height: '100%',
+                              background: `hsl(${340 - index * 20}, 70%, 50%)`,
+                              borderRadius: '4px'
+                            }}
+                          />
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : (
+                <p style={{ textAlign: 'center', color: '#666', padding: '40px' }}>No location data for this period</p>
+              )}
+            </div>
           </div>
-          <div style={{ padding: '20px', background: 'white', borderRadius: '8px' }}>
-            <h4 style={{ color: '#7c4dff', marginBottom: '10px' }}>Volunteer Retention</h4>
-            <p style={{ fontSize: '2rem', fontWeight: 'bold' }}>92%</p>
-            <p style={{ color: '#666', fontSize: '0.875rem' }}>active volunteers</p>
+
+          {/* Top Volunteers */}
+          <div className="card" style={{ marginTop: '20px' }}>
+            <h3 style={{ marginBottom: '20px' }}>Top Performing Volunteers</h3>
+            {topVolunteers.length > 0 ? (
+              <table className="data-table">
+                <thead>
+                  <tr>
+                    <th>Rank</th>
+                    <th>Volunteer</th>
+                    <th>Successful Assists</th>
+                    <th>Total Alerts</th>
+                    <th>Rating</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {topVolunteers.map((volunteer, index) => (
+                    <tr key={volunteer._id}>
+                      <td>
+                        <span style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          width: '30px',
+                          height: '30px',
+                          borderRadius: '50%',
+                          background: index === 0 ? '#ffd700' : index === 1 ? '#c0c0c0' : index === 2 ? '#cd7f32' : '#eee',
+                          fontWeight: 'bold'
+                        }}>
+                          {index + 1}
+                        </span>
+                      </td>
+                      <td style={{ fontWeight: '500' }}>{volunteer.user?.name || 'Unknown'}</td>
+                      <td>{volunteer.stats?.successfulAssists || 0}</td>
+                      <td>{volunteer.stats?.totalAlerts || 0}</td>
+                      <td>{volunteer.stats?.rating > 0 ? volunteer.stats.rating.toFixed(1) : 'N/A'}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            ) : (
+              <p style={{ textAlign: 'center', color: '#666', padding: '20px' }}>No volunteer data available</p>
+            )}
           </div>
-          <div style={{ padding: '20px', background: 'white', borderRadius: '8px' }}>
-            <h4 style={{ color: '#4caf50', marginBottom: '10px' }}>Response Improvement</h4>
-            <p style={{ fontSize: '2rem', fontWeight: 'bold' }}>-15%</p>
-            <p style={{ color: '#666', fontSize: '0.875rem' }}>response time reduced</p>
-          </div>
-          <div style={{ padding: '20px', background: 'white', borderRadius: '8px' }}>
-            <h4 style={{ color: '#ff9800', marginBottom: '10px' }}>User Satisfaction</h4>
-            <p style={{ fontSize: '2rem', fontWeight: 'bold' }}>4.7/5</p>
-            <p style={{ color: '#666', fontSize: '0.875rem' }}>average rating</p>
-          </div>
-        </div>
-      </div>
+        </>
+      )}
     </div>
   );
 };

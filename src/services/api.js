@@ -171,6 +171,17 @@ class ApiService {
     return this.request('/alerts/active');
   }
 
+  async getPendingFeedback() {
+    return this.request('/alerts/pending-feedback');
+  }
+
+  async submitAlertFeedback(alertId, data) {
+    return this.request(`/alerts/${alertId}/feedback`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  }
+
   // Emergency Contact endpoints
   async getContacts() {
     return this.request('/contacts');
@@ -199,6 +210,87 @@ class ApiService {
   async setPrimaryContact(id) {
     return this.request(`/contacts/${id}/primary`, {
       method: 'PUT',
+    });
+  }
+
+  // Admin endpoints
+  async getAdminDashboard() {
+    return this.request('/admin/dashboard');
+  }
+
+  async getAdminUsers(page = 1, limit = 20, search = '', status = '') {
+    const params = new URLSearchParams();
+    params.append('page', page);
+    params.append('limit', limit);
+    if (search) params.append('search', search);
+    if (status && status !== 'all') params.append('status', status);
+    return this.request(`/admin/users?${params.toString()}`);
+  }
+
+  async updateUserStatus(userId, isActive) {
+    return this.request(`/admin/users/${userId}/status`, {
+      method: 'PUT',
+      body: JSON.stringify({ isActive }),
+    });
+  }
+
+  async getAdminVolunteers(page = 1, limit = 20, status = '', verified = '') {
+    const params = new URLSearchParams();
+    params.append('page', page);
+    params.append('limit', limit);
+    if (status && status !== 'all') params.append('status', status);
+    if (verified) params.append('verified', verified);
+    return this.request(`/admin/volunteers?${params.toString()}`);
+  }
+
+  async verifyVolunteer(volunteerId) {
+    return this.request(`/admin/volunteers/${volunteerId}/verify`, {
+      method: 'PUT',
+    });
+  }
+
+  async updateVolunteerStatus(volunteerId, status) {
+    return this.request(`/admin/volunteers/${volunteerId}/status`, {
+      method: 'PUT',
+      body: JSON.stringify({ status }),
+    });
+  }
+
+  async getAdminAlerts(page = 1, limit = 20, status = '', startDate = '', endDate = '') {
+    const params = new URLSearchParams();
+    params.append('page', page);
+    params.append('limit', limit);
+    if (status && status !== 'all') params.append('status', status);
+    if (startDate) params.append('startDate', startDate);
+    if (endDate) params.append('endDate', endDate);
+    return this.request(`/admin/alerts?${params.toString()}`);
+  }
+
+  async getAdminReports(days = 30) {
+    return this.request(`/admin/reports?days=${days}`);
+  }
+
+  async getAdminSafeZones() {
+    return this.request('/admin/safezones');
+  }
+
+  async createSafeZone(data) {
+    return this.request('/admin/safezones', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async updateSafeZone(id, data) {
+    return this.request(`/admin/safezones/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async deleteSafeZone(id) {
+    return this.request(`/admin/safezones/${id}`, {
+      method: 'DELETE',
     });
   }
 }

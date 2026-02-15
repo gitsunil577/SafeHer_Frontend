@@ -7,6 +7,7 @@ import './index.css';
 // Common Components
 import Navbar from './components/common/Navbar';
 import Footer from './components/common/Footer';
+import NavigationLoader from './components/common/NavigationLoader';
 
 // Pages
 import Home from './pages/Home';
@@ -33,6 +34,7 @@ import UserManagement from './components/admin/UserManagement';
 import VolunteerManagement from './components/admin/VolunteerManagement';
 import AlertMonitoring from './components/admin/AlertMonitoring';
 import Reports from './components/admin/Reports';
+import SafeZoneManagement from './components/admin/SafeZoneManagement';
 
 // Protected Route Component
 const ProtectedRoute = ({ children, allowedRoles }) => {
@@ -202,6 +204,12 @@ function AppRoutes() {
         </ProtectedRoute>
       } />
 
+      <Route path="/admin/safezones" element={
+        <ProtectedRoute allowedRoles={['admin']}>
+          <Layout showFooter={false}><SafeZoneManagement /></Layout>
+        </ProtectedRoute>
+      } />
+
       {/* Fallback Route */}
       <Route path="*" element={<Navigate to="/" />} />
     </Routes>
@@ -213,6 +221,7 @@ function App() {
     <AuthProvider>
       <SocketProvider>
         <Router>
+          <NavigationLoader />
           <AppRoutes />
         </Router>
       </SocketProvider>

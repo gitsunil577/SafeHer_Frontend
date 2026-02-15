@@ -203,15 +203,15 @@ const EmergencyContacts = () => {
         <ul style={{ listStyle: 'none', padding: 0 }}>
           <li style={{ marginBottom: '8px' }}>
             <span style={{ marginRight: '10px' }}>1.</span>
-            When you trigger an SOS alert, all your emergency contacts will be notified
+            When you trigger SOS, all emergency contacts are notified instantly
           </li>
           <li style={{ marginBottom: '8px' }}>
             <span style={{ marginRight: '10px' }}>2.</span>
-            Your primary contact will receive a phone call
+            Contacts receive your live Google Maps location via SMS
           </li>
           <li style={{ marginBottom: '8px' }}>
             <span style={{ marginRight: '10px' }}>3.</span>
-            All contacts will receive your live location via SMS
+            Nearby on-duty volunteers are also alerted in real-time
           </li>
           <li>
             <span style={{ marginRight: '10px' }}>4.</span>
@@ -248,7 +248,7 @@ const EmergencyContacts = () => {
               className="form-control"
               value={formData.phone}
               onChange={handleChange}
-              placeholder="+1234567890"
+              placeholder="10-digit phone number"
               required
             />
           </div>

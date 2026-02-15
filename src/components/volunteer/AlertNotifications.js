@@ -56,16 +56,29 @@ const AlertNotifications = ({ onStatsUpdate }) => {
     fetchNearbyAlerts();
   }, [fetchNearbyAlerts]);
 
+  // Re-fetch alerts when socket reconnects (handles missed alerts during disconnect)
+  useEffect(() => {
+    if (isConnected) {
+      fetchNearbyAlerts();
+    }
+  }, [isConnected, fetchNearbyAlerts]);
+
   // Listen for real-time new alerts via Socket.IO
   useEffect(() => {
     const handleNewAlert = (data) => {
       console.log('New alert received:', data);
 
+      // Distance from backend is in meters - convert to km for display
+      const distanceMeters = data.distance;
+      const distanceDisplay = distanceMeters
+        ? `${(distanceMeters / 1000).toFixed(1)} km`
+        : 'Nearby';
+
       const newAlert = {
         id: data.alertId,
         userName: data.userName || 'Anonymous User',
         timestamp: 'Just now',
-        distance: data.distance ? `${data.distance.toFixed(1)} km` : 'Nearby',
+        distance: distanceDisplay,
         location: data.location?.address || 'Unknown location',
         coordinates: data.location?.coordinates ? {
           lat: data.location.coordinates[1],

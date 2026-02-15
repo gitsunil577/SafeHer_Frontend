@@ -1,0 +1,43 @@
+.nav-loader-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(2px);
+  animation: nav-fade-in 0.15s ease-out;
+}
+
+.nav-loader-overlay.nav-loader-hide {
+  animation: nav-fade-out 0.3s ease-in forwards;
+}
+
+.nav-spinner {
+  width: 44px;
+  height: 44px;
+  border: 4px solid var(--primary-light);
+  border-top-color: var(--primary-color);
+  border-radius: 50%;
+  animation: nav-spin 0.7s linear infinite;
+}
+
+@keyframes nav-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes nav-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes nav-fade-out {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}

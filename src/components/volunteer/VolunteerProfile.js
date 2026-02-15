@@ -1,17 +1,63 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
+import api from '../../services/api';
 
 const VolunteerProfile = () => {
   const { user, updateUser } = useAuth();
   const [isEditing, setIsEditing] = useState(false);
+  const [profile, setProfile] = useState(null);
+  const [stats, setStats] = useState(null);
+  const [badges, setBadges] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [formData, setFormData] = useState({
-    name: user?.name || '',
-    email: user?.email || '',
-    phone: user?.phone || '',
-    address: user?.address || '',
-    availability: user?.availability || 'flexible',
-    skills: user?.skills || ''
+    name: '',
+    email: '',
+    phone: '',
+    address: '',
+    availability: 'flexible',
+    skills: ''
   });
+
+  useEffect(() => {
+    fetchProfileData();
+  }, []);
+
+  const fetchProfileData = async () => {
+    try {
+      setLoading(true);
+      const [profileRes, dashboardRes] = await Promise.all([
+        api.getVolunteerProfile(),
+        api.getVolunteerDashboard()
+      ]);
+
+      const vol = profileRes.data;
+      setProfile(vol);
+      setStats(dashboardRes.data.stats);
+      setBadges(dashboardRes.data.badges || []);
+
+      setFormData({
+        name: vol.user?.name || user?.name || '',
+        email: vol.user?.email || user?.email || '',
+        phone: vol.user?.phone || user?.phone || '',
+        address: user?.address || '',
+        availability: vol.availability || 'flexible',
+        skills: Array.isArray(vol.skills) ? vol.skills.join(', ') : vol.skills || ''
+      });
+    } catch (err) {
+      console.error('Failed to fetch profile:', err);
+      // Fallback to auth context user data
+      setFormData({
+        name: user?.name || '',
+        email: user?.email || '',
+        phone: user?.phone || '',
+        address: user?.address || '',
+        availability: user?.availability || 'flexible',
+        skills: user?.skills || ''
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleChange = (e) => {
     setFormData({
@@ -20,38 +66,84 @@ const VolunteerProfile = () => {
     });
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    updateUser({ ...user, ...formData });
-    setIsEditing(false);
+    try {
+      await api.updateVolunteerProfile({
+        availability: formData.availability,
+        skills: formData.skills.split(',').map(s => s.trim()).filter(Boolean)
+      });
+      updateUser({ ...user, ...formData });
+      setIsEditing(false);
+      fetchProfileData();
+    } catch (err) {
+      console.error('Failed to update profile:', err);
+    }
   };
 
-  const badges = [
-    { name: 'First Responder', icon: '🏅', earned: true },
-    { name: '10 Assists', icon: '⭐', earned: true },
-    { name: '25 Assists', icon: '🌟', earned: true },
-    { name: 'Quick Responder', icon: '⚡', earned: true },
-    { name: '50 Assists', icon: '🏆', earned: false },
-    { name: 'Community Hero', icon: '🦸', earned: false }
+  const formatDate = (dateStr) => {
+    if (!dateStr) return 'N/A';
+    const date = new Date(dateStr);
+    return date.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+  };
+
+  const formatResponseTime = (seconds) => {
+    if (!seconds || seconds === 0) return '--';
+    if (seconds < 60) return `${Math.round(seconds)}s`;
+    return `${(seconds / 60).toFixed(1)} min`;
+  };
+
+  // All possible badges with their lock/unlock logic
+  const allBadgeDefinitions = [
+    { name: 'First Responder', icon: '🏅' },
+    { name: '10 Assists', icon: '⭐' },
+    { name: '25 Assists', icon: '🌟' },
+    { name: 'Quick Responder', icon: '⚡' },
+    { name: '50 Assists', icon: '🏆' },
+    { name: 'Community Hero', icon: '🦸' }
   ];
+
+  const getBadgesWithStatus = () => {
+    return allBadgeDefinitions.map(def => {
+      const earned = badges.find(b => b.name === def.name);
+      return {
+        ...def,
+        earned: !!earned,
+        earnedAt: earned?.earnedAt
+      };
+    });
+  };
+
+  if (loading) {
+    return (
+      <div className="container" style={{ padding: '40px 0', textAlign: 'center' }}>
+        <p>Loading profile...</p>
+      </div>
+    );
+  }
+
+  const memberSince = profile?.createdAt || user?.createdAt;
+  const isVerified = profile?.isVerified ?? user?.verified;
 
   return (
     <div className="container" style={{ padding: '20px 0' }}>
       <div className="card">
         <div className="profile-header">
           <div className="profile-avatar" style={{ background: 'linear-gradient(135deg, #7c4dff, #536dfe)' }}>
-            {user?.name?.charAt(0).toUpperCase() || 'V'}
+            {formData.name?.charAt(0).toUpperCase() || 'V'}
           </div>
           <div className="profile-info">
-            <h2>{user?.name || 'Volunteer'}</h2>
-            <p>{user?.email}</p>
+            <h2>{formData.name || 'Volunteer'}</h2>
+            <p>{formData.email}</p>
             <div style={{ display: 'flex', gap: '10px', marginTop: '10px' }}>
-              {user?.verified ? (
+              {isVerified ? (
                 <span className="badge badge-success">Verified Volunteer</span>
               ) : (
                 <span className="badge badge-warning">Pending Verification</span>
               )}
-              <span className="badge badge-info">Member since Jan 2024</span>
+              {memberSince && (
+                <span className="badge badge-info">Member since {formatDate(memberSince)}</span>
+              )}
             </div>
           </div>
         </div>
@@ -142,7 +234,6 @@ const VolunteerProfile = () => {
               value={formData.skills}
               onChange={handleChange}
               disabled={!isEditing}
-              placeholder="First aid, self-defense training, etc."
               rows="2"
             />
           </div>
@@ -159,7 +250,7 @@ const VolunteerProfile = () => {
       <div className="card" style={{ marginTop: '20px' }}>
         <h3 style={{ marginBottom: '20px' }}>Badges & Achievements</h3>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '15px' }}>
-          {badges.map((badge, index) => (
+          {getBadgesWithStatus().map((badge, index) => (
             <div
               key={index}
               style={{
@@ -172,6 +263,11 @@ const VolunteerProfile = () => {
             >
               <span style={{ fontSize: '2rem' }}>{badge.icon}</span>
               <p style={{ marginTop: '10px', fontWeight: '500' }}>{badge.name}</p>
+              {badge.earned && badge.earnedAt && (
+                <p style={{ fontSize: '0.75rem', color: '#666' }}>
+                  Earned {formatDate(badge.earnedAt)}
+                </p>
+              )}
               {!badge.earned && <p style={{ fontSize: '0.75rem', color: '#666' }}>Locked</p>}
             </div>
           ))}
@@ -183,19 +279,21 @@ const VolunteerProfile = () => {
         <h3 style={{ marginBottom: '20px' }}>Your Statistics</h3>
         <div className="dashboard-stats">
           <div className="stat-card">
-            <div className="stat-number">24</div>
+            <div className="stat-number">{stats?.totalResponses ?? 0}</div>
             <div className="stat-label">Total Responses</div>
           </div>
           <div className="stat-card">
-            <div className="stat-number">22</div>
+            <div className="stat-number">{stats?.successfulAssists ?? 0}</div>
             <div className="stat-label">Successful Assists</div>
           </div>
           <div className="stat-card">
-            <div className="stat-number">4.2 min</div>
+            <div className="stat-number">{formatResponseTime(stats?.avgResponseTime)}</div>
             <div className="stat-label">Avg Response Time</div>
           </div>
           <div className="stat-card">
-            <div className="stat-number" style={{ color: '#ff9800' }}>⭐ 4.8</div>
+            <div className="stat-number" style={{ color: '#ff9800' }}>
+              {stats?.totalRatings > 0 ? `⭐ ${stats.rating.toFixed(1)}` : 'No ratings'}
+            </div>
             <div className="stat-label">User Rating</div>
           </div>
         </div>
