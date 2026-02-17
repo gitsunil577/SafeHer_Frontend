@@ -175,6 +175,10 @@ class ApiService {
     return this.request('/alerts/pending-feedback');
   }
 
+  async getRecentAlerts() {
+    return this.request('/alerts/recent');
+  }
+
   async submitAlertFeedback(alertId, data) {
     return this.request(`/alerts/${alertId}/feedback`, {
       method: 'PUT',

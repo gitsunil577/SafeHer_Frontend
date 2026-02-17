@@ -36,23 +36,28 @@ const NearbySupport = () => {
     const fetchVolunteers = async () => {
       try {
         setLoading(true);
+        setError(null);
         let response;
 
         if (userLocation) {
-          response = await api.getNearbyVolunteers(userLocation.lat, userLocation.lng, 10000);
+          try {
+            response = await api.getNearbyVolunteers(userLocation.lat, userLocation.lng, 10000);
+          } catch (nearbyErr) {
+            // Geospatial query can fail, fallback to list
+            console.warn('Nearby query failed, falling back to list:', nearbyErr);
+            response = await api.getVolunteersList();
+          }
         } else {
           response = await api.getVolunteersList();
         }
 
         if (response.success) {
-          // Filter volunteers with valid positions and format for map
-          const formattedVolunteers = response.data
-            .filter(vol => vol.position)
-            .map(vol => ({
-              ...vol,
-              type: 'Volunteer',
-              phone: vol.phone || 'N/A'
-            }));
+          // Format for map - include volunteers even without position
+          const formattedVolunteers = response.data.map(vol => ({
+            ...vol,
+            type: 'Volunteer',
+            phone: vol.phone || 'N/A'
+          }));
           setVolunteers(formattedVolunteers);
         }
       } catch (err) {

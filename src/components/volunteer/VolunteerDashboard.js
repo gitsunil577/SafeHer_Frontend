@@ -6,7 +6,7 @@ import AlertNotifications from './AlertNotifications';
 
 const VolunteerDashboard = () => {
   const { user } = useAuth();
-  const { isConnected, emit } = useSocket();
+  const { isConnected, emit, on, off } = useSocket();
   const [isOnDuty, setIsOnDuty] = useState(false);
   const [dutyLoading, setDutyLoading] = useState(false);
   const [stats, setStats] = useState({
@@ -20,6 +20,9 @@ const VolunteerDashboard = () => {
   const [isVerified, setIsVerified] = useState(false);
   const [dashboardLoading, setDashboardLoading] = useState(true);
   const [locationWatchId, setLocationWatchId] = useState(null);
+  const [recentAlerts, setRecentAlerts] = useState([]);
+  const [recentAlertsLoading, setRecentAlertsLoading] = useState(false);
+  const [toastNotifications, setToastNotifications] = useState([]);
 
   // Fetch real dashboard data from API
   const fetchDashboard = useCallback(async () => {
@@ -95,6 +98,151 @@ const VolunteerDashboard = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOnDuty]);
 
+  // Fetch recent alerts for dashboard
+  const fetchRecentAlerts = useCallback(async () => {
+    if (!isOnDuty) {
+      setRecentAlerts([]);
+      return;
+    }
+    setRecentAlertsLoading(true);
+    try {
+      const response = await api.getRecentAlerts();
+      if (response.success) {
+        setRecentAlerts(response.data || []);
+      }
+    } catch (err) {
+      console.error('Error fetching recent alerts:', err);
+    } finally {
+      setRecentAlertsLoading(false);
+    }
+  }, [isOnDuty]);
+
+  // Fetch recent alerts when duty status changes
+  useEffect(() => {
+    fetchRecentAlerts();
+  }, [fetchRecentAlerts]);
+
+  // Request browser notification permission when going on duty
+  useEffect(() => {
+    if (isOnDuty && 'Notification' in window && Notification.permission === 'default') {
+      Notification.requestPermission();
+    }
+  }, [isOnDuty]);
+
+  // Show browser notification (works even when tab is in background)
+  const showBrowserNotification = useCallback((title, body) => {
+    if ('Notification' in window && Notification.permission === 'granted') {
+      try {
+        const notification = new Notification(title, {
+          body,
+          icon: '/favicon.ico',
+          tag: 'safeher-alert',
+          requireInteraction: true
+        });
+        notification.onclick = () => {
+          window.focus();
+          notification.close();
+        };
+      } catch (e) {
+        // Notification API not available
+      }
+    }
+  }, []);
+
+  // Play urgent notification sound
+  const playNotificationSound = useCallback(() => {
+    try {
+      const ctx = new (window.AudioContext || window.webkitAudioContext)();
+      // Play two-tone urgent beep
+      const playTone = (freq, startTime, duration) => {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.frequency.value = freq;
+        osc.type = 'sine';
+        gain.gain.value = 0.4;
+        osc.start(startTime);
+        osc.stop(startTime + duration);
+      };
+      // Beep pattern: high-low-high
+      playTone(880, ctx.currentTime, 0.15);
+      playTone(660, ctx.currentTime + 0.2, 0.15);
+      playTone(880, ctx.currentTime + 0.4, 0.15);
+      setTimeout(() => ctx.close(), 1000);
+    } catch (e) {
+      // Audio not supported
+    }
+  }, []);
+
+  // Dismiss a toast notification
+  const dismissToast = useCallback((toastId) => {
+    setToastNotifications(prev => prev.filter(t => t.id !== toastId));
+  }, []);
+
+  // Listen for new alerts in real-time and add to recent alerts list + show toast
+  useEffect(() => {
+    if (!isOnDuty) return;
+
+    const handleNewAlert = (data) => {
+      const newAlert = {
+        _id: data.alertId,
+        userName: data.userName || 'Unknown User',
+        type: data.type || 'sos',
+        priority: data.priority || 'high',
+        status: 'active',
+        message: data.message || '',
+        location: data.location?.address || 'Location shared',
+        coordinates: data.location?.coordinates
+          ? { lat: data.location.coordinates[1], lng: data.location.coordinates[0] }
+          : null,
+        respondingVolunteerName: null,
+        createdAt: new Date().toISOString()
+      };
+      setRecentAlerts(prev => [newAlert, ...prev.filter(a => a._id !== data.alertId)]);
+
+      // Show toast notification
+      const toastId = `toast_${data.alertId}_${Date.now()}`;
+      const toast = {
+        id: toastId,
+        alertId: data.alertId,
+        userName: data.userName || 'Someone',
+        type: data.type || 'sos',
+        priority: data.priority || 'high',
+        message: data.message || 'Emergency SOS Alert',
+        location: data.location?.address || 'Nearby location',
+        time: new Date()
+      };
+      setToastNotifications(prev => [toast, ...prev]);
+      playNotificationSound();
+      showBrowserNotification(
+        'SOS Alert - SafeHer',
+        `${toast.userName} needs help! ${toast.message}`
+      );
+
+      // Auto-dismiss after 15 seconds
+      setTimeout(() => {
+        setToastNotifications(prev => prev.filter(t => t.id !== toastId));
+      }, 15000);
+    };
+
+    const handleAlertCancelled = (data) => {
+      setRecentAlerts(prev =>
+        prev.map(a => a._id === data.alertId ? { ...a, status: 'cancelled' } : a)
+      );
+      // Remove toast for cancelled alert
+      setToastNotifications(prev => prev.filter(t => t.alertId !== data.alertId));
+    };
+
+    on('new_alert', handleNewAlert);
+    on('alert_cancelled', handleAlertCancelled);
+
+    return () => {
+      off('new_alert', handleNewAlert);
+      off('alert_cancelled', handleAlertCancelled);
+    };
+  }, [isOnDuty, on, off, playNotificationSound, showBrowserNotification]);
+
   // Toggle duty via real API
   const handleDutyToggle = async () => {
     setDutyLoading(true);
@@ -141,6 +289,129 @@ const VolunteerDashboard = () => {
 
   return (
     <div className="container" style={{ padding: '20px 0' }}>
+      {/* Toast Notifications - Fixed at top */}
+      {toastNotifications.length > 0 && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          zIndex: 9999,
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          padding: '15px',
+          gap: '10px',
+          pointerEvents: 'none'
+        }}>
+          {toastNotifications.map((toast, index) => (
+            <div
+              key={toast.id}
+              style={{
+                pointerEvents: 'auto',
+                width: '100%',
+                maxWidth: '500px',
+                background: 'linear-gradient(135deg, #d32f2f, #b71c1c)',
+                color: '#fff',
+                borderRadius: '12px',
+                padding: '16px 20px',
+                boxShadow: '0 8px 32px rgba(211, 47, 47, 0.4)',
+                animation: 'slideDown 0.4s ease-out',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '8px'
+              }}
+            >
+              {/* Toast Header */}
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <span style={{
+                    width: '12px',
+                    height: '12px',
+                    borderRadius: '50%',
+                    background: '#ff5252',
+                    display: 'inline-block',
+                    animation: 'alertPulse 0.8s infinite',
+                    boxShadow: '0 0 8px rgba(255,82,82,0.8)'
+                  }}></span>
+                  <span style={{ fontWeight: '700', fontSize: '1rem', letterSpacing: '0.5px' }}>
+                    NEW SOS ALERT
+                  </span>
+                  <span style={{
+                    background: 'rgba(255,255,255,0.2)',
+                    padding: '2px 8px',
+                    borderRadius: '4px',
+                    fontSize: '0.7rem',
+                    fontWeight: '600',
+                    textTransform: 'uppercase'
+                  }}>
+                    {toast.type}
+                  </span>
+                </div>
+                <button
+                  onClick={() => dismissToast(toast.id)}
+                  style={{
+                    background: 'rgba(255,255,255,0.2)',
+                    border: 'none',
+                    color: '#fff',
+                    width: '28px',
+                    height: '28px',
+                    borderRadius: '50%',
+                    cursor: 'pointer',
+                    fontSize: '1rem',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center'
+                  }}
+                >
+                  ×
+                </button>
+              </div>
+
+              {/* Toast Body */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <div style={{
+                  width: '44px',
+                  height: '44px',
+                  borderRadius: '50%',
+                  background: 'rgba(255,255,255,0.15)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontSize: '1.4rem',
+                  flexShrink: 0
+                }}>
+                  &#x1F198;
+                </div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontWeight: '600', fontSize: '0.95rem' }}>
+                    {toast.userName} needs help!
+                  </div>
+                  <div style={{ fontSize: '0.8rem', opacity: 0.9, marginTop: '2px' }}>
+                    {toast.message}
+                  </div>
+                  <div style={{ fontSize: '0.75rem', opacity: 0.75, marginTop: '2px' }}>
+                    {toast.location}
+                  </div>
+                </div>
+              </div>
+
+              {/* Toast Action */}
+              <div style={{
+                fontSize: '0.8rem',
+                opacity: 0.8,
+                textAlign: 'center',
+                borderTop: '1px solid rgba(255,255,255,0.2)',
+                paddingTop: '8px',
+                marginTop: '4px'
+              }}>
+                Scroll down to Active Alerts to respond
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
       {/* Header */}
       <div className="card">
         <div className="flex-between">
@@ -287,6 +558,110 @@ const VolunteerDashboard = () => {
           )}
         </div>
 
+        {/* Recent Alerts (last 24h) */}
+        {isOnDuty && (
+          <div className="card">
+            <div className="card-header">
+              <h3 className="card-title">Recent Alerts (Last 24h)</h3>
+              <button
+                onClick={fetchRecentAlerts}
+                style={{
+                  background: 'none',
+                  border: '1px solid #ddd',
+                  borderRadius: '6px',
+                  padding: '4px 12px',
+                  cursor: 'pointer',
+                  fontSize: '0.8rem',
+                  color: '#666'
+                }}
+              >
+                Refresh
+              </button>
+            </div>
+            {recentAlertsLoading ? (
+              <div style={{ textAlign: 'center', padding: '30px', color: '#666' }}>
+                Loading recent alerts...
+              </div>
+            ) : recentAlerts.length > 0 ? (
+              <ul className="alert-list">
+                {recentAlerts.map((alert) => (
+                  <li key={alert._id} className="alert-item" style={{
+                    borderLeft: `4px solid ${
+                      alert.status === 'active' ? '#f44336' :
+                      alert.status === 'responding' ? '#ff9800' :
+                      alert.status === 'resolved' ? '#4caf50' :
+                      '#9e9e9e'
+                    }`
+                  }}>
+                    <div className={`alert-icon ${
+                      alert.status === 'active' ? 'danger' :
+                      alert.status === 'responding' ? 'warning' :
+                      alert.status === 'resolved' ? 'success' : ''
+                    }`}>
+                      {alert.status === 'active' ? '!' :
+                       alert.status === 'responding' ? '...' :
+                       alert.status === 'resolved' ? '\u2713' : '\u2717'}
+                    </div>
+                    <div className="alert-content" style={{ flex: 1 }}>
+                      <div className="alert-title" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <span>{alert.userName}</span>
+                        <span style={{
+                          background: alert.type === 'sos' ? '#ffebee' : '#fff3e0',
+                          color: alert.type === 'sos' ? '#c62828' : '#e65100',
+                          padding: '2px 8px',
+                          borderRadius: '4px',
+                          fontSize: '0.7rem',
+                          fontWeight: '600',
+                          textTransform: 'uppercase'
+                        }}>
+                          {alert.type}
+                        </span>
+                      </div>
+                      {alert.message && (
+                        <div style={{ fontSize: '0.85rem', color: '#555', marginTop: '2px' }}>
+                          {alert.message}
+                        </div>
+                      )}
+                      <div style={{ fontSize: '0.8rem', color: '#888', marginTop: '4px' }}>
+                        {alert.location}
+                      </div>
+                      {alert.respondingVolunteerName && (
+                        <div style={{ fontSize: '0.8rem', color: '#2e7d32', marginTop: '2px' }}>
+                          Responded by: {alert.respondingVolunteerName}
+                        </div>
+                      )}
+                      <span className="alert-time">{getTimeAgo(alert.createdAt)}</span>
+                    </div>
+                    <span className={`badge badge-${
+                      alert.status === 'active' ? 'danger' :
+                      alert.status === 'responding' ? 'warning' :
+                      alert.status === 'resolved' ? 'success' : 'secondary'
+                    }`} style={{
+                      background:
+                        alert.status === 'active' ? '#f44336' :
+                        alert.status === 'responding' ? '#ff9800' :
+                        alert.status === 'resolved' ? '#4caf50' :
+                        alert.status === 'cancelled' ? '#9e9e9e' : '#666',
+                      color: '#fff',
+                      padding: '4px 10px',
+                      borderRadius: '12px',
+                      fontSize: '0.75rem',
+                      fontWeight: '600'
+                    }}>
+                      {alert.status}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <div style={{ textAlign: 'center', padding: '30px', color: '#666' }}>
+                <p>No alerts in the last 24 hours.</p>
+                <p style={{ fontSize: '0.875rem' }}>New SOS alerts will appear here in real-time.</p>
+              </div>
+            )}
+          </div>
+        )}
+
         {/* Recent Activity */}
         <div className="card">
           <div className="card-header">
@@ -344,12 +719,27 @@ const VolunteerDashboard = () => {
         </div>
       </div>
 
-      {/* Pulse animation */}
+      {/* Animations */}
       <style>{`
         @keyframes pulse {
           0% { opacity: 1; }
           50% { opacity: 0.4; }
           100% { opacity: 1; }
+        }
+        @keyframes slideDown {
+          from {
+            opacity: 0;
+            transform: translateY(-100%);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+        @keyframes alertPulse {
+          0% { opacity: 1; transform: scale(1); }
+          50% { opacity: 0.6; transform: scale(1.3); }
+          100% { opacity: 1; transform: scale(1); }
         }
       `}</style>
     </div>

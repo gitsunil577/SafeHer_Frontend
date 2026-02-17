@@ -19,22 +19,12 @@ const SOSButton = ({ onTrigger, onAlertUpdate }) => {
   const locationWatchRef = useRef(null);
   const locationIntervalRef = useRef(null);
   const sosTriggeredRef = useRef(false);
+  const locationRef = useRef(null);
 
-  // Get user's location on component mount
+  // Check if geolocation is available (no auto location request on mount)
   useEffect(() => {
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          setLocation({
-            lat: position.coords.latitude,
-            lng: position.coords.longitude
-          });
-        },
-        (error) => {
-          setLocationError('Unable to get location. Please enable location services.');
-        },
-        { enableHighAccuracy: true }
-      );
+    if (!navigator.geolocation) {
+      setLocationError('Geolocation is not supported by your browser.');
     }
   }, []);
 
@@ -64,9 +54,16 @@ const SOSButton = ({ onTrigger, onAlertUpdate }) => {
     return () => {
       stopLiveLocationSharing();
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Keep locationRef in sync with state
+  useEffect(() => {
+    locationRef.current = location;
+  }, [location]);
+
   // Start live location sharing
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   const startLiveLocationSharing = useCallback((activeAlertId) => {
     const alertIdToUse = activeAlertId || alertId;
     if (!alertIdToUse || !liveLocationEnabled) return;
@@ -77,7 +74,7 @@ const SOSButton = ({ onTrigger, onAlertUpdate }) => {
     // Use watchPosition for real-time updates
     if (navigator.geolocation) {
       locationWatchRef.current = navigator.geolocation.watchPosition(
-        async (position) => {
+        (position) => {
           const newLocation = {
             lat: position.coords.latitude,
             lng: position.coords.longitude
@@ -96,17 +93,18 @@ const SOSButton = ({ onTrigger, onAlertUpdate }) => {
 
       // Send location updates to server every 10 seconds
       locationIntervalRef.current = setInterval(async () => {
-        if (location && alertIdToUse) {
+        const currentLoc = locationRef.current;
+        if (currentLoc && alertIdToUse) {
           try {
             await api.updateAlertLocation(alertIdToUse, {
-              latitude: location.lat,
-              longitude: location.lng
+              latitude: currentLoc.lat,
+              longitude: currentLoc.lng
             });
             // Also emit via socket for instant delivery to volunteer
             emit('location_update', {
               alertId: alertIdToUse,
-              latitude: location.lat,
-              longitude: location.lng,
+              latitude: currentLoc.lat,
+              longitude: currentLoc.lng,
               userType: 'user'
             });
             setLocationUpdateCount(prev => prev + 1);
@@ -116,7 +114,7 @@ const SOSButton = ({ onTrigger, onAlertUpdate }) => {
         }
       }, 10000);
     }
-  }, [alertId, location, liveLocationEnabled]);
+  }, [alertId, liveLocationEnabled, emit]);
 
   // Stop live location sharing
   const stopLiveLocationSharing = () => {
@@ -151,14 +149,18 @@ const SOSButton = ({ onTrigger, onAlertUpdate }) => {
                 lng: position.coords.longitude
               });
             },
-            (error) => {
+            (err) => {
               // Use last known location if fresh one fails
-              resolve(location);
+              if (location) {
+                resolve(location);
+              } else {
+                reject(new Error('Unable to get your location. Please enable location services and try again.'));
+              }
             },
-            { enableHighAccuracy: true, timeout: 5000 }
+            { enableHighAccuracy: true, timeout: 10000 }
           );
         } else {
-          resolve(location);
+          reject(new Error('Geolocation is not supported by your browser.'));
         }
       });
 
@@ -360,7 +362,9 @@ const SOSButton = ({ onTrigger, onAlertUpdate }) => {
             Location Enabled
           </span>
         ) : (
-          <span className="status-badge status-warning">Getting Location...</span>
+          <span className="status-badge status-safe">
+            Location will be shared when SOS is triggered
+          </span>
         )}
 
         {/* Countdown Message */}
