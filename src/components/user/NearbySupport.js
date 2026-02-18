@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import LocationMap from '../common/GoogleMap';
 import { useSocket } from '../../context/SocketContext';
 import api from '../../services/api';

@@ -20,6 +20,7 @@ const VolunteerProfile = () => {
 
   useEffect(() => {
     fetchProfileData();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const fetchProfileData = async () => {
