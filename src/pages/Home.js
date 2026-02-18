@@ -74,7 +74,7 @@ const Home = () => {
       {/* Stats Section */}
       <section style={{ background: 'white', padding: '40px 0' }}>
         <div className="container">
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '30px', textAlign: 'center' }}>
+          <div className="home-stats-grid">
             {stats.map((stat, index) => (
               <div key={index}>
                 <div style={{ fontSize: '2.5rem', fontWeight: 'bold', color: '#e91e63' }}>{stat.number}</div>
@@ -115,7 +115,7 @@ const Home = () => {
             <p style={{ color: '#666' }}>Get protected in 4 simple steps</p>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '30px' }}>
+          <div className="home-steps-grid">
             {steps.map((step, index) => (
               <div key={index} style={{ textAlign: 'center', position: 'relative' }}>
                 <div style={{
@@ -167,8 +167,8 @@ const Home = () => {
       {/* Volunteer Section */}
       <section style={{ padding: '60px 0' }}>
         <div className="container">
-          <div className="card" style={{ background: 'linear-gradient(135deg, #e8f5e9, #f3e5f5)', padding: '40px' }}>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '40px', alignItems: 'center' }}>
+          <div className="card" style={{ background: 'linear-gradient(135deg, #e8f5e9, #f3e5f5)' }}>
+            <div className="home-volunteer-grid">
               <div>
                 <h2 style={{ marginBottom: '20px' }}>Want to Make a Difference?</h2>
                 <p style={{ marginBottom: '20px', color: '#666' }}>
@@ -197,7 +197,7 @@ const Home = () => {
       <section style={{ background: '#ffebee', padding: '40px 0' }}>
         <div className="container">
           <h3 style={{ textAlign: 'center', marginBottom: '30px', color: '#c62828' }}>Emergency Helpline Numbers</h3>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '20px', textAlign: 'center' }}>
+          <div className="home-stats-grid">
             <div>
               <div style={{ fontSize: '1.5rem', fontWeight: 'bold', color: '#c62828' }}>112</div>
               <div>Emergency (All)</div>

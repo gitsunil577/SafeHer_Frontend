@@ -177,7 +177,7 @@ const Dashboard = () => {
           <div className="card-header">
             <h3 className="card-title">Quick Actions</h3>
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px' }}>
+          <div className="quick-actions-2col">
             {quickActions.map((action, index) => (
               <Link
                 key={index}

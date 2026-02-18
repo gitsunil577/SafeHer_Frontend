@@ -1,10 +1,16 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 
 const Navbar = () => {
   const { user, logout } = useAuth();
   const location = useLocation();
+  const [menuOpen, setMenuOpen] = useState(false);
+
+  // Auto-close menu on route change
+  useEffect(() => {
+    setMenuOpen(false);
+  }, [location.pathname]);
 
   const isActive = (path) => location.pathname === path ? 'nav-link active' : 'nav-link';
 
@@ -62,7 +68,14 @@ const Navbar = () => {
         <Link to="/" className="navbar-brand">
           <span>SafeHer</span>
         </Link>
-        <ul className="navbar-nav">
+        <button
+          className="navbar-toggle"
+          onClick={() => setMenuOpen(!menuOpen)}
+          aria-label="Toggle navigation"
+        >
+          <span className={`hamburger ${menuOpen ? 'open' : ''}`}></span>
+        </button>
+        <ul className={`navbar-nav ${menuOpen ? 'open' : ''}`}>
           {renderNavLinks()}
         </ul>
       </div>

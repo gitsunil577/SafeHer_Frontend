@@ -339,7 +339,7 @@ const NearbySupport = () => {
         ))}
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '20px' }}>
+      <div className="nearby-support-grid">
         {/* Support Teams & Volunteers */}
         <div>
           <h4 style={{ marginBottom: '15px', display: 'flex', alignItems: 'center', gap: '10px' }}>

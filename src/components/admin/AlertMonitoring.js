@@ -135,7 +135,7 @@ const AlertMonitoring = () => {
           <p>Loading alerts...</p>
         </div>
       ) : (
-        <div style={{ display: 'grid', gridTemplateColumns: selectedAlert ? '1fr 400px' : '1fr', gap: '20px', marginTop: '20px' }}>
+        <div className={`alert-monitoring-layout ${selectedAlert ? 'with-detail' : ''}`}>
           {/* Alerts List */}
           <div className="card" style={{ margin: 0 }}>
             <h3 style={{ marginBottom: '20px' }}>Alerts</h3>

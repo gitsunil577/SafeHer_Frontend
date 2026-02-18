@@ -307,6 +307,7 @@ const VolunteerDashboard = () => {
           {toastNotifications.map((toast, index) => (
             <div
               key={toast.id}
+              className="volunteer-toast"
               style={{
                 pointerEvents: 'auto',
                 width: '100%',

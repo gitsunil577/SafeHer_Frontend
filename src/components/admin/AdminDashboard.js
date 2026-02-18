@@ -148,33 +148,35 @@ const AdminDashboard = () => {
             <Link to="/admin/alerts" className="btn btn-sm btn-outline">View All</Link>
           </div>
           {stats?.recentAlerts?.length > 0 ? (
-            <table className="data-table">
-              <thead>
-                <tr>
-                  <th>User</th>
-                  <th>Location</th>
-                  <th>Status</th>
-                  <th>Type</th>
-                </tr>
-              </thead>
-              <tbody>
-                {stats.recentAlerts.slice(0, 5).map((alert) => (
-                  <tr key={alert._id}>
-                    <td>
-                      <div>{alert.user?.name || 'Unknown'}</div>
-                      <small style={{ color: '#666' }}>{getTimeAgo(alert.createdAt)}</small>
-                    </td>
-                    <td>{alert.location?.address || 'Unknown location'}</td>
-                    <td>
-                      <span className={`badge badge-${getStatusColor(alert.status)}`}>
-                        {alert.status}
-                      </span>
-                    </td>
-                    <td>{alert.type || 'SOS'}</td>
+            <div className="table-responsive">
+              <table className="data-table">
+                <thead>
+                  <tr>
+                    <th>User</th>
+                    <th>Location</th>
+                    <th>Status</th>
+                    <th>Type</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {stats.recentAlerts.slice(0, 5).map((alert) => (
+                    <tr key={alert._id}>
+                      <td>
+                        <div>{alert.user?.name || 'Unknown'}</div>
+                        <small style={{ color: '#666' }}>{getTimeAgo(alert.createdAt)}</small>
+                      </td>
+                      <td>{alert.location?.address || 'Unknown location'}</td>
+                      <td>
+                        <span className={`badge badge-${getStatusColor(alert.status)}`}>
+                          {alert.status}
+                        </span>
+                      </td>
+                      <td>{alert.type || 'SOS'}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           ) : (
             <p style={{ textAlign: 'center', color: '#666', padding: '20px' }}>No recent alerts</p>
           )}
@@ -230,7 +232,7 @@ const AdminDashboard = () => {
       {/* Quick Actions */}
       <div className="card" style={{ marginTop: '20px' }}>
         <h3 style={{ marginBottom: '20px' }}>Quick Actions</h3>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '15px' }}>
+        <div className="form-row" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))' }}>
           <Link to="/admin/users" className="btn btn-primary" style={{ justifyContent: 'flex-start' }}>
             Manage Users
           </Link>
@@ -252,7 +254,7 @@ const AdminDashboard = () => {
       {/* System Health */}
       <div className="card" style={{ marginTop: '20px', background: '#e8f5e9' }}>
         <h3 style={{ marginBottom: '15px' }}>System Health</h3>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '20px' }}>
+        <div className="form-row" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))' }}>
           <div>
             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '5px' }}>
               <span>Server Status</span>

@@ -139,7 +139,7 @@ const VolunteerRegister = () => {
             />
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px' }}>
+          <div className="form-row">
             <div className="form-group">
               <label className="form-label">Email <span style={{ color: 'red' }}>*</span></label>
               <input
@@ -180,7 +180,7 @@ const VolunteerRegister = () => {
             />
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px' }}>
+          <div className="form-row">
             <div className="form-group">
               <label className="form-label">ID Type <span style={{ color: 'red' }}>*</span></label>
               <select
@@ -277,7 +277,7 @@ const VolunteerRegister = () => {
             </select>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px' }}>
+          <div className="form-row">
             <div className="form-group">
               <label className="form-label">Password <span style={{ color: 'red' }}>*</span></label>
               <div style={{ position: 'relative' }}>

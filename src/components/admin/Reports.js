@@ -220,41 +220,43 @@ const Reports = () => {
           <div className="card" style={{ marginTop: '20px' }}>
             <h3 style={{ marginBottom: '20px' }}>Top Performing Volunteers</h3>
             {topVolunteers.length > 0 ? (
-              <table className="data-table">
-                <thead>
-                  <tr>
-                    <th>Rank</th>
-                    <th>Volunteer</th>
-                    <th>Successful Assists</th>
-                    <th>Total Alerts</th>
-                    <th>Rating</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {topVolunteers.map((volunteer, index) => (
-                    <tr key={volunteer._id}>
-                      <td>
-                        <span style={{
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          width: '30px',
-                          height: '30px',
-                          borderRadius: '50%',
-                          background: index === 0 ? '#ffd700' : index === 1 ? '#c0c0c0' : index === 2 ? '#cd7f32' : '#eee',
-                          fontWeight: 'bold'
-                        }}>
-                          {index + 1}
-                        </span>
-                      </td>
-                      <td style={{ fontWeight: '500' }}>{volunteer.user?.name || 'Unknown'}</td>
-                      <td>{volunteer.stats?.successfulAssists || 0}</td>
-                      <td>{volunteer.stats?.totalAlerts || 0}</td>
-                      <td>{volunteer.stats?.rating > 0 ? volunteer.stats.rating.toFixed(1) : 'N/A'}</td>
+              <div className="table-responsive">
+                <table className="data-table">
+                  <thead>
+                    <tr>
+                      <th>Rank</th>
+                      <th>Volunteer</th>
+                      <th>Successful Assists</th>
+                      <th>Total Alerts</th>
+                      <th>Rating</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody>
+                    {topVolunteers.map((volunteer, index) => (
+                      <tr key={volunteer._id}>
+                        <td>
+                          <span style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            width: '30px',
+                            height: '30px',
+                            borderRadius: '50%',
+                            background: index === 0 ? '#ffd700' : index === 1 ? '#c0c0c0' : index === 2 ? '#cd7f32' : '#eee',
+                            fontWeight: 'bold'
+                          }}>
+                            {index + 1}
+                          </span>
+                        </td>
+                        <td style={{ fontWeight: '500' }}>{volunteer.user?.name || 'Unknown'}</td>
+                        <td>{volunteer.stats?.successfulAssists || 0}</td>
+                        <td>{volunteer.stats?.totalAlerts || 0}</td>
+                        <td>{volunteer.stats?.rating > 0 ? volunteer.stats.rating.toFixed(1) : 'N/A'}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             ) : (
               <p style={{ textAlign: 'center', color: '#666', padding: '20px' }}>No volunteer data available</p>
             )}
